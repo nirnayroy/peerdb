@@ -276,7 +276,7 @@ func syncCore[TPull connectors.CDCPullConnectorCore, TSync connectors.CDCSyncCon
 		if temporal.IsApplicationError(err) {
 			return nil, err
 		} else {
-			return nil, fmt.Errorf("failed to pull records: %w", err)
+			return nil, fmt.Errorf("[cdc] failed to pull records: %w", err)
 		}
 	}
 	syncState.Store(shared.Ptr("bookkeeping"))
@@ -285,7 +285,7 @@ func syncCore[TPull connectors.CDCPullConnectorCore, TSync connectors.CDCSyncCon
 	lastCheckpoint := recordBatchSync.GetLastCheckpoint()
 	if err := srcConn.UpdateReplStateLastOffset(ctx, lastCheckpoint); err != nil {
 		a.Alerter.LogFlowError(ctx, flowName, err)
-		return 0, err
+		return nil, err
 	}
 
 	if err := monitoring.UpdateNumRowsAndEndLSNForCDCBatch(
@@ -450,7 +450,7 @@ func replicateQRepPartition[TRead any, TWrite StreamCloser, TSync connectors.QRe
 		tmp, err := pullRecords(srcConn, errCtx, config, partition, stream)
 		if err != nil {
 			a.Alerter.LogFlowError(ctx, config.FlowJobName, err)
-			return fmt.Errorf("failed to pull records: %w", err)
+			return fmt.Errorf("[qrep] failed to pull records: %w", err)
 		}
 		numRecords := int64(tmp)
 		if err := monitoring.UpdatePullEndTimeAndRowsForPartition(
