@@ -316,30 +316,29 @@ func SnapshotFlowWorkflow(
 
 	numTablesInParallel := int(max(config.SnapshotNumTablesInParallel, 1))
 
-	if !config.DoInitialSnapshot {
-		_, err := se.setupReplication(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to setup replication: %w", err)
-		}
-
-		if err := se.closeSlotKeepAlive(ctx); err != nil {
-			return fmt.Errorf("failed to close slot keep alive: %w", err)
-		}
-
-		return nil
-	}
-
 	sessionOpts := &workflow.SessionOptions{
 		CreationTimeout:  5 * time.Minute,
 		ExecutionTimeout: time.Hour * 24 * 365 * 100, // 100 years
 		HeartbeatTimeout: time.Hour,
 	}
-
 	sessionCtx, err := workflow.CreateSession(ctx, sessionOpts)
 	if err != nil {
 		return fmt.Errorf("failed to create session: %w", err)
 	}
 	defer workflow.CompleteSession(sessionCtx)
+
+	if !config.DoInitialSnapshot {
+		_, err := se.setupReplication(sessionCtx)
+		if err != nil {
+			return fmt.Errorf("failed to setup replication: %w", err)
+		}
+
+		if err := se.closeSlotKeepAlive(sessionCtx); err != nil {
+			return fmt.Errorf("failed to close slot keep alive: %w", err)
+		}
+
+		return nil
+	}
 
 	if config.InitialSnapshotOnly {
 		sessionInfo := workflow.GetSessionInfo(sessionCtx)
