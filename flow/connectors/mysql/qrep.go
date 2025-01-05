@@ -152,12 +152,45 @@ func (c *MySqlConnector) PullQRepRecords(
 		return 0, err
 	}
 
-	var rs *mysql.Result
+	totalRecords := 0
+	onResult := func(rs *mysql.Result) error {
+		schema := make([]qvalue.QField, 0, len(rs.Fields))
+		for _, field := range rs.Fields {
+			qkind, err := qkindFromMysql(field.Type)
+			if err != nil {
+				return err
+			}
+
+			schema = append(schema, qvalue.QField{
+				Name:      string(field.Name),
+				Type:      qkind,
+				Precision: 0, // TODO numerics
+				Scale:     0, // TODO numerics
+				Nullable:  (field.Flag & mysql.NOT_NULL_FLAG) == 0,
+			})
+		}
+		stream.SetSchema(qvalue.QRecordSchema{Fields: schema})
+		return nil
+	}
+	onRow := func(row []mysql.FieldValue) error {
+		totalRecords += 1 // TODO can this be batched in onResult or by checking rs at end?
+		schema := stream.Schema()
+		record := make([]qvalue.QValue, 0, len(row))
+		for idx, val := range row {
+			qv, err := qvalueFromMysqlFieldValue(schema.Fields[idx].Type, val)
+			if err != nil {
+				return err
+			}
+			record = append(record, qv)
+		}
+		stream.Records <- record
+		return nil
+	}
+
 	if last.FullTablePartition {
-		var err error
 		// this is a full table partition, so just run the query
-		rs, err = c.Execute(ctx, query)
-		if err != nil {
+		var rs mysql.Result
+		if err := c.ExecuteSelectStreaming(ctx, query, &rs, onRow, onResult); err != nil {
 			return 0, err
 		}
 	} else {
@@ -176,42 +209,14 @@ func (c *MySqlConnector) PullQRepRecords(
 			return 0, fmt.Errorf("unknown range type: %v", x)
 		}
 
-		var err error
-		rs, err = c.Execute(ctx, query, rangeStart, rangeEnd)
-		if err != nil {
+		var rs mysql.Result
+		if err := c.ExecuteSelectStreaming(ctx, query, &rs, onRow, onResult, rangeStart, rangeEnd); err != nil {
 			return 0, err
 		}
 	}
 
-	schema := make([]qvalue.QField, 0, len(rs.Fields))
-	for _, field := range rs.Fields {
-		qkind, err := qkindFromMysql(field.Type)
-		if err != nil {
-			return 0, err
-		}
-
-		schema = append(schema, qvalue.QField{
-			Name:      string(field.Name),
-			Type:      qkind,
-			Precision: 0, // TODO numerics
-			Scale:     0, // TODO numerics
-			Nullable:  (field.Flag & mysql.NOT_NULL_FLAG) == 0,
-		})
-	}
-	stream.SetSchema(qvalue.QRecordSchema{Fields: schema})
-	for _, row := range rs.Values {
-		record := make([]qvalue.QValue, 0, len(row))
-		for idx, val := range row {
-			qv, err := qvalueFromMysqlFieldValue(schema[idx].Type, val)
-			if err != nil {
-				return 0, err
-			}
-			record = append(record, qv)
-		}
-		stream.Records <- record
-	}
 	close(stream.Records)
-	return len(rs.Values), nil
+	return totalRecords, nil
 }
 
 func BuildQuery(logger log.Logger, query string) (string, error) {

@@ -94,6 +94,66 @@ func (c *MySqlConnector) Execute(ctx context.Context, cmd string, args ...interf
 	}
 }
 
+func (c *MySqlConnector) ExecuteSelectStreaming(ctx context.Context, cmd string, result *mysql.Result,
+	rowCb client.SelectPerRowCallback,
+	resultCb client.SelectPerResultCallback,
+	args ...interface{},
+) error {
+	reconnects := 3
+	for {
+		// TODO need new connection if ctx changes between calls, or make upstream PR
+		if c.conn == nil {
+			var err error
+			var argF []client.Option
+			if !c.config.DisableTls {
+				argF = append(argF, func(conn *client.Conn) error {
+					conn.SetTLSConfig(&tls.Config{MinVersion: tls.VersionTLS13})
+					return nil
+				})
+			}
+			c.conn, err = c.connect(ctx, argF...)
+			if err != nil {
+				return fmt.Errorf("failed to connect to mysql server: %w", err)
+			}
+			if _, err := c.conn.Execute("SET sql_mode = ANSI"); err != nil {
+				return fmt.Errorf("failed to set sql_mode to ANSI: %w", err)
+			}
+		}
+
+		if len(args) == 0 {
+			if err := c.conn.ExecuteSelectStreaming(cmd, result, rowCb, resultCb); err != nil {
+				if reconnects > 0 && mysql.ErrorEqual(err, mysql.ErrBadConn) {
+					reconnects -= 1
+					c.conn.Close()
+					c.conn = nil
+					continue
+				}
+				return err
+			}
+		} else {
+			stmt, err := c.conn.Prepare(cmd)
+			if err != nil {
+				if reconnects > 0 && mysql.ErrorEqual(err, mysql.ErrBadConn) {
+					reconnects -= 1
+					c.conn.Close()
+					c.conn = nil
+					continue
+				}
+				return err
+			}
+			if err := stmt.ExecuteSelectStreaming(result, rowCb, resultCb, args...); err != nil {
+				if reconnects > 0 && mysql.ErrorEqual(err, mysql.ErrBadConn) {
+					reconnects -= 1
+					c.conn.Close()
+					c.conn = nil
+					continue
+				}
+				return err
+			}
+		}
+	}
+}
+
 func (c *MySqlConnector) GetMasterPos(ctx context.Context) (mysql.Position, error) {
 	showBinlogStatus := "SHOW BINARY LOG STATUS"
 	if eq, err := c.conn.CompareServerVersion("8.4.0"); (err == nil) && (eq < 0) {
