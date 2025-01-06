@@ -154,6 +154,20 @@ func (c *MySqlConnector) ExecuteSelectStreaming(ctx context.Context, cmd string,
 	}
 }
 
+func (c *MySqlConnector) GetGtidModeOn(ctx context.Context) (bool, error) {
+	rr, err := c.Execute(ctx, "select @@global.gtid_mode")
+	if err != nil {
+		return false, err
+	}
+
+	gtid_mode, err := rr.GetString(0, 0)
+	if err != nil {
+		return false, err
+	}
+
+	return gtid_mode == "ON", nil
+}
+
 func (c *MySqlConnector) GetMasterPos(ctx context.Context) (mysql.Position, error) {
 	showBinlogStatus := "SHOW BINARY LOG STATUS"
 	if eq, err := c.conn.CompareServerVersion("8.4.0"); (err == nil) && (eq < 0) {

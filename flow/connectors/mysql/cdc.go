@@ -121,12 +121,26 @@ func (c *MySqlConnector) SetupReplConn(ctx context.Context) error {
 		return fmt.Errorf("[mysql] SetupReplConn failed to GetLastOffset: %w", err)
 	}
 	if offset.Text == "" {
-		set, err := c.GetMasterGTIDSet(ctx)
+		gtidModeOn, err := c.GetGtidModeOn(ctx)
 		if err != nil {
-			return fmt.Errorf("[mysql] SetupReplConn failed to GetMasterGTIDSet: %w", err)
+			return err
+		}
+		var lastOffsetText string
+		if gtidModeOn {
+			set, err := c.GetMasterGTIDSet(ctx)
+			if err != nil {
+				return fmt.Errorf("[mysql] SetupReplConn failed to GetMasterGTIDSet: %w", err)
+			}
+			lastOffsetText = set.String()
+		} else {
+			pos, err := c.GetMasterPos(ctx)
+			if err != nil {
+				return fmt.Errorf("[mysql] SetupReplConn failed to GetMasterPos: %w", err)
+			}
+			lastOffsetText = fmt.Sprintf("!f:%s,%d", pos.Name, pos.Pos)
 		}
 		if err := c.SetLastOffset(
-			ctx, flowName, model.CdcCheckpoint{Text: set.String()},
+			ctx, flowName, model.CdcCheckpoint{Text: lastOffsetText},
 		); err != nil {
 			return fmt.Errorf("[mysql] SetupReplConn failed to SetLastOffset: %w", err)
 		}
