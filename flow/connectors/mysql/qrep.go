@@ -12,10 +12,10 @@ import (
 	"github.com/google/uuid"
 	"go.temporal.io/sdk/log"
 
-	utils "github.com/PeerDB-io/peer-flow/connectors/utils/partition"
-	"github.com/PeerDB-io/peer-flow/generated/protos"
-	"github.com/PeerDB-io/peer-flow/model"
-	"github.com/PeerDB-io/peer-flow/model/qvalue"
+	utils "github.com/PeerDB-io/peerdb/flow/connectors/utils/partition"
+	"github.com/PeerDB-io/peerdb/flow/generated/protos"
+	"github.com/PeerDB-io/peerdb/flow/model"
+	"github.com/PeerDB-io/peerdb/flow/model/qvalue"
 )
 
 func (c *MySqlConnector) GetQRepPartitions(
