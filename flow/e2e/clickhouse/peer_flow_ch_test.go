@@ -26,7 +26,11 @@ import (
 //go:embed test_data/*
 var testData embed.FS
 
-func TestPeerFlowE2ETestSuiteCH(t *testing.T) {
+func TestPeerFlowE2ETestSuitePG_CH(t *testing.T) {
+	e2eshared.RunSuite(t, SetupSuite)
+}
+
+func TestPeerFlowE2ETestSuiteMySQL_CH(t *testing.T) {
 	e2eshared.RunSuite(t, SetupSuite)
 }
 

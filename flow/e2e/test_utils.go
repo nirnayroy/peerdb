@@ -39,30 +39,30 @@ func init() {
 	_ = godotenv.Load()
 }
 
-type Suite interface {
+type Suite[TSource connectors.Connector] interface {
 	e2eshared.Suite
 	T() *testing.T
-	Connector() *connpostgres.PostgresConnector
+	Connector() TSource
 	Suffix() string
 }
 
-type RowSource interface {
-	Suite
+type RowSource[TSource connectors.Connector] interface {
+	Suite[TSource]
 	GetRows(table, cols string) (*model.QRecordBatch, error)
 }
 
-type GenericSuite interface {
-	RowSource
+type GenericSuite[TSource connectors.Connector] interface {
+	RowSource[TSource]
 	Peer() *protos.Peer
 	DestinationConnector() connectors.Connector
 	DestinationTable(table string) string
 }
 
-func AttachSchema(s Suite, table string) string {
+func AttachSchema(s interface{ Suffix() string }, table string) string {
 	return fmt.Sprintf("e2e_test_%s.%s", s.Suffix(), table)
 }
 
-func AddSuffix(s Suite, str string) string {
+func AddSuffix[T connectors.Connector](s Suite[T], str string) string {
 	return fmt.Sprintf("%s_%s", str, s.Suffix())
 }
 
@@ -542,7 +542,7 @@ func GetOwnersSelectorStringsSF() [2]string {
 	return [2]string{strings.Join(pgFields, ","), strings.Join(sfFields, ",")}
 }
 
-func ExpectedDestinationIdentifier(s GenericSuite, ident string) string {
+func ExpectedDestinationIdentifier[T connectors.Connector](s GenericSuite[T], ident string) string {
 	switch s.DestinationConnector().(type) {
 	case *connsnowflake.SnowflakeConnector:
 		return strings.ToUpper(ident)
@@ -551,7 +551,7 @@ func ExpectedDestinationIdentifier(s GenericSuite, ident string) string {
 	}
 }
 
-func ExpectedDestinationTableName(s GenericSuite, table string) string {
+func ExpectedDestinationTableName[T connectors.Connector](s GenericSuite[T], table string) string {
 	return ExpectedDestinationIdentifier(s, s.DestinationTable(table))
 }
 
