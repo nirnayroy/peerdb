@@ -24,6 +24,12 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: postgres
           POSTGRES_INITDB_ARGS: --locale=C.UTF-8
+      mysql:
+        image: mariadb:lts-ubi
+        ports:
+          - 3306:3306
+        env:
+          MARIADB_ROOT_PASSWORD: maria
       redpanda:
         image: redpandadata/redpanda@sha256:46ed8144e64aae1991cf439f96a05196425997a77abdf21941f0ff44ef7c5be0
         ports:
