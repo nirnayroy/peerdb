@@ -72,15 +72,14 @@ func setupPostgresSchema(t *testing.T, conn *pgx.Conn, suffix string) error {
 		}
 	}()
 
-	// create an e2e_test schema
 	if _, err := setupTx.Exec(context.Background(), "CREATE SCHEMA e2e_test_"+suffix); err != nil {
 		return fmt.Errorf("failed to create e2e_test schema: %w", err)
 	}
 
 	if _, err := setupTx.Exec(context.Background(), `
-		CREATE OR REPLACE FUNCTION random_string( int ) RETURNS TEXT as $$
-			SELECT string_agg(substring('0123456789bcdfghjkmnpqrstvwxyz',
-			round(random() * 30)::integer, 1), '') FROM generate_series(1, $1);
+		CREATE OR REPLACE FUNCTION random_string(int) RETURNS TEXT as $$
+			SELECT string_agg(substring('0123456789bcdefghijkmnpqrstvwxyz',
+			round(random() * 32)::integer, 1), '') FROM generate_series(1, $1);
 		$$ language sql;
 		CREATE OR REPLACE FUNCTION random_bytea(bytea_length integer)
 		RETURNS bytea AS $body$
