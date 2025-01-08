@@ -108,7 +108,7 @@ func SetupSuite(t *testing.T) PubSubSuite {
 
 	return PubSubSuite{
 		t:      t,
-		conn:   conn,
+		conn:   conn.PostgresConnector,
 		suffix: suffix,
 	}
 }
@@ -141,7 +141,7 @@ func (s PubSubSuite) TestCreateTopic() {
 		TableNameMapping: map[string]string{srcTableName: flowName},
 		Destination:      s.Peer(sa).Name,
 	}
-	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t)
+	flowConnConfig := connectionGen.GeneratePostgresFlowConnectionConfigs(s.t)
 	flowConnConfig.Script = "e2e_pscreate"
 
 	tc := e2e.NewTemporalClient(s.t)
@@ -193,7 +193,7 @@ func (s PubSubSuite) TestSimple() {
 		TableNameMapping: map[string]string{srcTableName: flowName},
 		Destination:      s.Peer(sa).Name,
 	}
-	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t)
+	flowConnConfig := connectionGen.GeneratePostgresFlowConnectionConfigs(s.t)
 	flowConnConfig.Script = "e2e_pssimple"
 
 	psclient, err := sa.CreatePubSubClient(context.Background())
@@ -263,7 +263,7 @@ func (s PubSubSuite) TestInitialLoad() {
 		TableNameMapping: map[string]string{srcTableName: flowName},
 		Destination:      s.Peer(sa).Name,
 	}
-	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t)
+	flowConnConfig := connectionGen.GeneratePostgresFlowConnectionConfigs(s.t)
 	flowConnConfig.Script = "e2e_psinitial"
 	flowConnConfig.DoInitialSnapshot = true
 

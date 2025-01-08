@@ -92,7 +92,7 @@ func SetupSuite(t *testing.T) PeerFlowE2ETestSuiteSQLServer {
 
 	return PeerFlowE2ETestSuiteSQLServer{
 		t:          t,
-		conn:       conn,
+		conn:       conn.PostgresConnector,
 		sqlsHelper: sqlsHelper,
 		suffix:     suffix,
 	}

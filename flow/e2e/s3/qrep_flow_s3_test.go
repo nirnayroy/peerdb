@@ -83,7 +83,7 @@ func setupSuite(t *testing.T, s3environment S3Environment) PeerFlowE2ETestSuiteS
 
 	return PeerFlowE2ETestSuiteS3{
 		t:        t,
-		conn:     conn,
+		conn:     conn.PostgresConnector,
 		s3Helper: helper,
 		suffix:   suffix,
 	}

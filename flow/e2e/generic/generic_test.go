@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/PeerDB-io/peerdb/flow/connectors"
+	"github.com/PeerDB-io/peerdb/flow/connectors/postgres"
 	"github.com/PeerDB-io/peerdb/flow/e2e"
 	e2e_bigquery "github.com/PeerDB-io/peerdb/flow/e2e/bigquery"
 	e2e_clickhouse "github.com/PeerDB-io/peerdb/flow/e2e/clickhouse"
@@ -32,14 +33,14 @@ func TestGenericBQ(t *testing.T) {
 }
 
 func TestGenericCH(t *testing.T) {
-	e2eshared.RunSuite(t, SetupGenericSuite(e2e_clickhouse.SetupSuite))
+	e2eshared.RunSuite(t, SetupGenericSuite(e2e_clickhouse.SetupSuite(t, e2e.SetupPostgres)))
 }
 
 type Generic struct {
-	e2e.GenericSuite
+	e2e.GenericSuite[*connpostgres.PostgresConnector]
 }
 
-func SetupGenericSuite[T e2e.GenericSuite](f func(t *testing.T) T) func(t *testing.T) Generic {
+func SetupGenericSuite[T e2e.GenericSuite[*connpostgres.PostgresConnector]](f func(t *testing.T) T) func(t *testing.T) Generic {
 	return func(t *testing.T) Generic {
 		t.Helper()
 		return Generic{f(t)}
@@ -67,7 +68,7 @@ func (s Generic) Test_Simple_Flow() {
 		TableMappings: e2e.TableMappings(s, srcTable, dstTable),
 		Destination:   s.Peer().Name,
 	}
-	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(t)
+	flowConnConfig := connectionGen.GeneratePostgresFlowConnectionConfigs(t)
 
 	tc := e2e.NewTemporalClient(t)
 	env := e2e.ExecutePeerflow(tc, peerflow.CDCFlowWorkflow, flowConnConfig, nil)
@@ -116,7 +117,7 @@ func (s Generic) Test_Simple_Schema_Changes() {
 		Destination:   s.Peer().Name,
 	}
 
-	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(t)
+	flowConnConfig := connectionGen.GeneratePostgresFlowConnectionConfigs(t)
 
 	// wait for PeerFlowStatusQuery to finish setup
 	// and then insert and mutate schema repeatedly.
@@ -330,7 +331,7 @@ func (s Generic) Test_Partitioned_Table() {
 		TableMappings: e2e.TableMappings(s, srcTable, dstTable),
 		Destination:   s.Peer().Name,
 	}
-	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(t)
+	flowConnConfig := connectionGen.GeneratePostgresFlowConnectionConfigs(t)
 
 	tc := e2e.NewTemporalClient(t)
 	env := e2e.ExecutePeerflow(tc, peerflow.CDCFlowWorkflow, flowConnConfig, nil)

@@ -6,12 +6,19 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/PeerDB-io/peerdb/flow/connectors"
 	"github.com/PeerDB-io/peerdb/flow/connectors/utils"
 	"github.com/PeerDB-io/peerdb/flow/generated/protos"
 	"github.com/PeerDB-io/peerdb/flow/peerdbenv"
 )
 
-func TableMappings(s GenericSuite, tables ...string) []*protos.TableMapping {
+type SuiteSource interface {
+	Teardown(t *testing.T, suffix string)
+	GeneratePeer(t *testing.T) *protos.Peer
+	Connector() connectors.Connector
+}
+
+func TableMappings[TSource connectors.Connector](s GenericSuite[TSource], tables ...string) []*protos.TableMapping {
 	if len(tables)&1 != 0 {
 		panic("must receive even number of table names")
 	}
@@ -45,7 +52,38 @@ type FlowConnectionGenerationConfig struct {
 	SoftDelete       bool
 }
 
-func (c *FlowConnectionGenerationConfig) GenerateFlowConnectionConfigs(t *testing.T) *protos.FlowConnectionConfigs {
+func (c *FlowConnectionGenerationConfig) GenerateFlowConnectionConfigs(
+	t *testing.T,
+	source SuiteSource,
+) *protos.FlowConnectionConfigs {
+	t.Helper()
+	tblMappings := c.TableMappings
+	if tblMappings == nil {
+		for k, v := range c.TableNameMapping {
+			tblMappings = append(tblMappings, &protos.TableMapping{
+				SourceTableIdentifier:      k,
+				DestinationTableIdentifier: v,
+			})
+		}
+	}
+
+	ret := &protos.FlowConnectionConfigs{
+		FlowJobName:        c.FlowJobName,
+		TableMappings:      tblMappings,
+		SourceName:         source.GeneratePeer(t).Name,
+		DestinationName:    c.Destination,
+		SyncedAtColName:    "_PEERDB_SYNCED_AT",
+		IdleTimeoutSeconds: 15,
+	}
+	if c.SoftDelete {
+		ret.SoftDeleteColName = "_PEERDB_IS_DELETED"
+	}
+	return ret
+}
+
+func (c *FlowConnectionGenerationConfig) GeneratePostgresFlowConnectionConfigs(
+	t *testing.T,
+) *protos.FlowConnectionConfigs {
 	t.Helper()
 	tblMappings := c.TableMappings
 	if tblMappings == nil {

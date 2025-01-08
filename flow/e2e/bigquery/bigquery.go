@@ -110,7 +110,7 @@ func SetupSuite(t *testing.T) PeerFlowE2ETestSuiteBQ {
 	return PeerFlowE2ETestSuiteBQ{
 		t:        t,
 		bqSuffix: bqSuffix,
-		conn:     conn,
+		conn:     conn.PostgresConnector,
 		bqHelper: bqHelper,
 	}
 }

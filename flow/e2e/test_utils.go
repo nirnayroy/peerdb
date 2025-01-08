@@ -22,6 +22,7 @@ import (
 	"go.temporal.io/sdk/temporal"
 
 	"github.com/PeerDB-io/peerdb/flow/connectors"
+	connmysql "github.com/PeerDB-io/peerdb/flow/connectors/mysql"
 	connpostgres "github.com/PeerDB-io/peerdb/flow/connectors/postgres"
 	connsnowflake "github.com/PeerDB-io/peerdb/flow/connectors/snowflake"
 	"github.com/PeerDB-io/peerdb/flow/e2eshared"
@@ -100,39 +101,57 @@ func GetPgRows(conn *connpostgres.PostgresConnector, suffix string, table string
 	)
 }
 
-func RequireEqualTables(suite RowSource, table string, cols string) {
+func GetMySqlRows(conn *connmysql.MySqlConnector, suffix string, table string, cols string) (*model.QRecordBatch, error) {
+	// TODO mysql
+	return nil, nil
+}
+
+func GetSuiteSourceRows[TSource connectors.Connector](suite Suite[TSource], table string, cols string) (*model.QRecordBatch, error) {
+	switch conn := any(suite.Connector()).(type) {
+	case *connpostgres.PostgresConnector:
+		return GetPgRows(conn, suite.Suffix(), table, cols)
+	case *connmysql.MySqlConnector:
+		return GetMySqlRows(conn, suite.Suffix(), table, cols)
+	default:
+		panic("unknown connector type")
+	}
+}
+
+func RequireEqualTables[TSource connectors.Connector](suite RowSource[TSource], table string, cols string) {
 	t := suite.T()
 	t.Helper()
 
-	pgRows, err := GetPgRows(suite.Connector(), suite.Suffix(), table, cols)
+	sourceRows, err := GetSuiteSourceRows(suite, table, cols)
 	require.NoError(t, err)
 
 	rows, err := suite.GetRows(table, cols)
 	require.NoError(t, err)
 
-	require.True(t, e2eshared.CheckEqualRecordBatches(t, pgRows, rows))
+	require.True(t, e2eshared.CheckEqualRecordBatches(t, sourceRows, rows))
 }
 
-func EnvEqualTables(env WorkflowRun, suite RowSource, table string, cols string) {
+func EnvEqualTables[TSource connectors.Connector](env WorkflowRun, suite RowSource[TSource], table string, cols string) {
 	EnvEqualTablesWithNames(env, suite, table, table, cols)
 }
 
-func EnvEqualTablesWithNames(env WorkflowRun, suite RowSource, srcTable string, dstTable string, cols string) {
+func EnvEqualTablesWithNames[TSource connectors.Connector](
+	env WorkflowRun, suite RowSource[TSource], srcTable string, dstTable string, cols string,
+) {
 	t := suite.T()
 	t.Helper()
 
-	pgRows, err := GetPgRows(suite.Connector(), suite.Suffix(), srcTable, cols)
+	sourceRows, err := GetSuiteSourceRows(suite, srcTable, cols)
 	EnvNoError(t, env, err)
 
 	rows, err := suite.GetRows(dstTable, cols)
 	EnvNoError(t, env, err)
 
-	EnvEqualRecordBatches(t, env, pgRows, rows)
+	EnvEqualRecordBatches(t, env, sourceRows, rows)
 }
 
-func EnvWaitForEqualTables(
+func EnvWaitForEqualTables[TSource connectors.Connector](
 	env WorkflowRun,
-	suite RowSource,
+	suite RowSource[TSource],
 	reason string,
 	table string,
 	cols string,
@@ -141,9 +160,9 @@ func EnvWaitForEqualTables(
 	EnvWaitForEqualTablesWithNames(env, suite, reason, table, table, cols)
 }
 
-func EnvWaitForEqualTablesWithNames(
+func EnvWaitForEqualTablesWithNames[TSource connectors.Connector](
 	env WorkflowRun,
-	suite RowSource,
+	suite RowSource[TSource],
 	reason string,
 	srcTable string,
 	dstTable string,
@@ -155,7 +174,7 @@ func EnvWaitForEqualTablesWithNames(
 	EnvWaitFor(t, env, 3*time.Minute, reason, func() bool {
 		t.Helper()
 
-		pgRows, err := GetPgRows(suite.Connector(), suite.Suffix(), srcTable, cols)
+		sourceRows, err := GetSuiteSourceRows(suite, srcTable, cols)
 		if err != nil {
 			t.Log(err)
 			return false
@@ -167,13 +186,13 @@ func EnvWaitForEqualTablesWithNames(
 			return false
 		}
 
-		return e2eshared.CheckEqualRecordBatches(t, pgRows, rows)
+		return e2eshared.CheckEqualRecordBatches(t, sourceRows, rows)
 	})
 }
 
-func EnvWaitForCount(
+func EnvWaitForCount[TSource connectors.Connector](
 	env WorkflowRun,
-	suite RowSource,
+	suite RowSource[TSource],
 	reason string,
 	dstTable string,
 	cols string,

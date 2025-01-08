@@ -174,7 +174,10 @@ func (c *MySqlConnector) PullQRepRecords(
 	}
 	onRow := func(row []mysql.FieldValue) error {
 		totalRecords += 1 // TODO can this be batched in onResult or by checking rs at end?
-		schema := stream.Schema()
+		schema, err := stream.Schema()
+		if err != nil {
+			return err
+		}
 		record := make([]qvalue.QValue, 0, len(row))
 		for idx, val := range row {
 			qv, err := qvalueFromMysqlFieldValue(schema.Fields[idx].Type, val)

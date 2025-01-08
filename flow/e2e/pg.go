@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 
+	"github.com/PeerDB-io/peerdb/flow/connectors"
 	connpostgres "github.com/PeerDB-io/peerdb/flow/connectors/postgres"
 	"github.com/PeerDB-io/peerdb/flow/generated/protos"
 	"github.com/PeerDB-io/peerdb/flow/peerdbenv"
@@ -96,8 +97,11 @@ func setupPostgresSchema(t *testing.T, conn *pgx.Conn, suffix string) error {
 	return setupTx.Commit(context.Background())
 }
 
-// SetupPostgres sets up the postgres connection.
-func SetupPostgres(t *testing.T, suffix string) (*connpostgres.PostgresConnector, error) {
+type PostgresSource struct {
+	*connpostgres.PostgresConnector
+}
+
+func SetupPostgres(t *testing.T, suffix string) (*PostgresSource, error) {
 	t.Helper()
 
 	connector, err := connpostgres.NewPostgresConnector(context.Background(),
@@ -117,16 +121,18 @@ func SetupPostgres(t *testing.T, suffix string) (*connpostgres.PostgresConnector
 		return nil, err
 	}
 
-	return connector, nil
+	return &PostgresSource{PostgresConnector: connector}, nil
 }
 
-func TearDownPostgres[T Suite](s T) {
-	t := s.T()
+func (s *PostgresSource) Connector() connectors.Connector {
+	return s.PostgresConnector
+}
+
+func (s *PostgresSource) Teardown(t *testing.T, suffix string) {
 	t.Helper()
 
-	conn := s.Connector().Conn()
-	if conn != nil {
-		suffix := s.Suffix()
+	if s.PostgresConnector != nil {
+		conn := s.PostgresConnector.Conn()
 		t.Log("begin tearing down postgres schema", suffix)
 		deadline := time.Now().Add(2 * time.Minute)
 		for {
@@ -142,7 +148,33 @@ func TearDownPostgres[T Suite](s T) {
 	}
 }
 
-// GeneratePostgresPeer generates a postgres peer config for testing.
+func TearDownPostgres(s Suite[*connpostgres.PostgresConnector]) {
+	t := s.T()
+	t.Helper()
+
+	conn := s.Connector()
+	if conn != nil {
+		conn := s.Connector().Conn()
+		t.Log("begin tearing down postgres schema", s.Suffix())
+		deadline := time.Now().Add(2 * time.Minute)
+		for {
+			err := cleanPostgres(conn, s.Suffix())
+			if err == nil {
+				conn.Close(context.Background())
+				return
+			} else if time.Now().After(deadline) {
+				require.Fail(t, "failed to teardown postgres schema", "%s: %v", s.Suffix(), err)
+			}
+			time.Sleep(time.Second)
+		}
+	}
+}
+
+func (s *PostgresSource) GeneratePeer(t *testing.T) *protos.Peer {
+	t.Helper()
+	return GeneratePostgresPeer(t)
+}
+
 func GeneratePostgresPeer(t *testing.T) *protos.Peer {
 	t.Helper()
 	peer := &protos.Peer{

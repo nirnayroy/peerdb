@@ -27,11 +27,11 @@ import (
 var testData embed.FS
 
 func TestPeerFlowE2ETestSuitePG_CH(t *testing.T) {
-	e2eshared.RunSuite(t, SetupSuite)
+	e2eshared.RunSuite(t, SetupSuite(t, e2e.SetupPostgres))
 }
 
 func TestPeerFlowE2ETestSuiteMySQL_CH(t *testing.T) {
-	e2eshared.RunSuite(t, SetupSuite)
+	// TODO e2eshared.RunSuite(t, SetupSuite(t, e2e.SetupMySQL))
 }
 
 func (s ClickHouseSuite) attachSchemaSuffix(tableName string) string {
@@ -72,7 +72,7 @@ func (s ClickHouseSuite) Test_Addition_Removal() {
 		Destination:      s.Peer().Name,
 	}
 
-	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t)
+	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t, s.source)
 	flowConnConfig.MaxBatchSize = 1
 
 	env := e2e.ExecutePeerflow(tc, peerflow.CDCFlowWorkflow, flowConnConfig, nil)
@@ -218,7 +218,7 @@ func (s ClickHouseSuite) Test_NullableMirrorSetting() {
 		TableNameMapping: map[string]string{srcFullName: dstTableName},
 		Destination:      s.Peer().Name,
 	}
-	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t)
+	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t, s.source)
 	flowConnConfig.DoInitialSnapshot = true
 	flowConnConfig.Env = map[string]string{"PEERDB_NULLABLE": "true"}
 
@@ -265,7 +265,7 @@ func (s ClickHouseSuite) Test_NullableColumnSetting() {
 		TableNameMapping: map[string]string{srcFullName: dstTableName},
 		Destination:      s.Peer().Name,
 	}
-	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t)
+	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t, s.source)
 	flowConnConfig.DoInitialSnapshot = true
 	for _, tm := range flowConnConfig.TableMappings {
 		tm.Columns = []*protos.ColumnSetting{
@@ -317,7 +317,7 @@ func (s ClickHouseSuite) Test_Date32() {
 		TableNameMapping: map[string]string{srcFullName: dstTableName},
 		Destination:      s.Peer().Name,
 	}
-	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t)
+	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t, s.source)
 	flowConnConfig.DoInitialSnapshot = true
 
 	tc := e2e.NewTemporalClient(s.t)
@@ -360,7 +360,7 @@ func (s ClickHouseSuite) Test_Update_PKey_Env_Disabled() {
 		TableNameMapping: map[string]string{srcFullName: dstTableName},
 		Destination:      s.Peer().Name,
 	}
-	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t)
+	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t, s.source)
 	flowConnConfig.DoInitialSnapshot = true
 	flowConnConfig.Env = map[string]string{"PEERDB_CLICKHOUSE_ENABLE_PRIMARY_UPDATE": "false"}
 
@@ -408,7 +408,7 @@ func (s ClickHouseSuite) Test_Update_PKey_Env_Enabled() {
 		TableNameMapping: map[string]string{srcFullName: dstTableName},
 		Destination:      s.Peer().Name,
 	}
-	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t)
+	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t, s.source)
 	flowConnConfig.DoInitialSnapshot = true
 	flowConnConfig.Env = map[string]string{"PEERDB_CLICKHOUSE_ENABLE_PRIMARY_UPDATE": "true"}
 
@@ -448,7 +448,7 @@ func (s ClickHouseSuite) Test_Replident_Full_Unchanged_TOAST_Updates() {
 		TableNameMapping: map[string]string{srcFullName: dstTableName},
 		Destination:      s.Peer().Name,
 	}
-	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t)
+	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t, s.source)
 
 	tc := e2e.NewTemporalClient(s.t)
 	env := e2e.ExecutePeerflow(tc, peerflow.CDCFlowWorkflow, flowConnConfig, nil)
@@ -493,7 +493,7 @@ func (s ClickHouseSuite) WeirdTable(tableName string) {
 		TableNameMapping: map[string]string{s.attachSchemaSuffix(tableName): dstTableName},
 		Destination:      s.Peer().Name,
 	}
-	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t)
+	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t, s.source)
 	flowConnConfig.DoInitialSnapshot = true
 	tc := e2e.NewTemporalClient(s.t)
 	env := e2e.ExecutePeerflow(tc, peerflow.CDCFlowWorkflow, flowConnConfig, nil)
@@ -577,7 +577,7 @@ func (s ClickHouseSuite) Test_Large_Numeric() {
 		TableNameMapping: map[string]string{srcFullName: dstTableName},
 		Destination:      s.Peer().Name,
 	}
-	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t)
+	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t, s.source)
 	flowConnConfig.DoInitialSnapshot = true
 
 	tc := e2e.NewTemporalClient(s.t)
@@ -633,7 +633,7 @@ func (s ClickHouseSuite) testNumericFF(ffValue bool) {
 		TableNameMapping: map[string]string{srcFullName: dstTableName},
 		Destination:      s.Peer().Name,
 	}
-	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t)
+	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t, s.source)
 	flowConnConfig.DoInitialSnapshot = true
 	flowConnConfig.Env = map[string]string{"PEERDB_CLICKHOUSE_UNBOUNDED_NUMERIC_AS_STRING": strconv.FormatBool(ffValue)}
 	tc := e2e.NewTemporalClient(s.t)
@@ -697,7 +697,7 @@ func (s ClickHouseSuite) testBinaryFormat(format string, expected string) {
 		TableNameMapping: map[string]string{srcFullName: dstTableName},
 		Destination:      s.Peer().Name,
 	}
-	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t)
+	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t, s.source)
 	flowConnConfig.DoInitialSnapshot = true
 	flowConnConfig.Env = map[string]string{"PEERDB_CLICKHOUSE_BINARY_FORMAT": format}
 	tc := e2e.NewTemporalClient(s.t)
@@ -779,7 +779,7 @@ func (s ClickHouseSuite) Test_Types_CH() {
 		TableNameMapping: map[string]string{srcFullName: dstTableName},
 		Destination:      s.Peer().Name,
 	}
-	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t)
+	flowConnConfig := connectionGen.GenerateFlowConnectionConfigs(s.t, s.source)
 	flowConnConfig.DoInitialSnapshot = true
 
 	tc := e2e.NewTemporalClient(s.t)

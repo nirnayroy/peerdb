@@ -99,7 +99,7 @@ func SetupSuite(t *testing.T) PeerFlowE2ETestSuiteSF {
 	suite := PeerFlowE2ETestSuiteSF{
 		t:         t,
 		pgSuffix:  pgSuffix,
-		conn:      conn,
+		conn:      conn.PostgresConnector,
 		sfHelper:  sfHelper,
 		connector: connector,
 	}

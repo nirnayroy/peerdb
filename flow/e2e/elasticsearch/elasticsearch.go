@@ -54,7 +54,7 @@ func SetupSuite(t *testing.T) elasticsearchSuite {
 
 	return elasticsearchSuite{
 		t:           t,
-		conn:        conn,
+		conn:        conn.PostgresConnector,
 		esClient:    esClient,
 		esAddresses: esAddresses,
 		suffix:      suffix,
