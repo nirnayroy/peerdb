@@ -71,3 +71,8 @@ func (s *MySqlSource) GeneratePeer(t *testing.T) *protos.Peer {
 	CreatePeer(t, peer)
 	return peer
 }
+
+func (s *MySqlSource) Exec(sql string) error {
+	_, err := s.MySqlConnector.Execute(context.Background(), sql)
+	return err
+}

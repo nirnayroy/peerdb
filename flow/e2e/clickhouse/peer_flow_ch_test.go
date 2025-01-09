@@ -173,14 +173,10 @@ func (s ClickHouseSuite) Test_Addition_Removal() {
 	afterRemoveRunID := e2e.EnvGetRunID(s.t, env)
 	require.NotEqual(s.t, runID, afterRemoveRunID)
 
-	_, err = s.Conn().Exec(context.Background(), fmt.Sprintf(`
-	INSERT INTO %s (key) VALUES ('test');
-	`, srcTableName))
+	_, err = s.Conn().Exec(context.Background(), fmt.Sprintf("INSERT INTO %s (key) VALUES ('test')", srcTableName))
 	require.NoError(s.t, err)
 
-	_, err = s.Conn().Exec(context.Background(), fmt.Sprintf(`
-	INSERT INTO %s (key) VALUES ('test');
-	`, addedSrcTableName))
+	_, err = s.Conn().Exec(context.Background(), fmt.Sprintf("INSERT INTO %s (key) VALUES ('test')", addedSrcTableName))
 	require.NoError(s.t, err)
 
 	e2e.EnvWaitForEqualTablesWithNames(env, s, "second insert to added table", "test_table_add_remove_added", addedDstTableName, "id,key")
@@ -298,19 +294,17 @@ func (s ClickHouseSuite) Test_Date32() {
 	srcFullName := s.attachSchemaSuffix("test_date32")
 	dstTableName := "test_date32_dst"
 
-	_, err := s.Conn().Exec(context.Background(), fmt.Sprintf(`
+	require.NoError(s.t, s.source.Exec(fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
 			id SERIAL PRIMARY KEY,
-			key TEXT NOT NULL,
+			"key" TEXT NOT NULL,
 			d DATE NOT NULL
 		);
-	`, srcFullName))
-	require.NoError(s.t, err)
+	`, srcFullName)))
 
-	_, err = s.Conn().Exec(context.Background(), fmt.Sprintf(`
-	INSERT INTO %s (key,d) VALUES ('init','1935-01-01');
-	`, srcFullName))
-	require.NoError(s.t, err)
+	require.NoError(s.t, s.source.Exec(
+		fmt.Sprintf(`INSERT INTO %s ("key",d) VALUES ('init','1935-01-01')`, srcFullName),
+	))
 
 	connectionGen := e2e.FlowConnectionGenerationConfig{
 		FlowJobName:      s.attachSuffix("clickhouse_date32"),
@@ -326,10 +320,9 @@ func (s ClickHouseSuite) Test_Date32() {
 
 	e2e.EnvWaitForEqualTablesWithNames(env, s, "waiting on initial", srcTableName, dstTableName, "id,key,d")
 
-	_, err = s.Conn().Exec(context.Background(), fmt.Sprintf(`
-	INSERT INTO %s (key,d) VALUES ('cdc','1935-01-01');
-	`, srcFullName))
-	require.NoError(s.t, err)
+	require.NoError(s.t, s.source.Exec(
+		fmt.Sprintf(`INSERT INTO %s ("key",d) VALUES ('cdc','1935-01-01')`, srcFullName),
+	))
 
 	e2e.EnvWaitForEqualTablesWithNames(env, s, "waiting on cdc", srcTableName, dstTableName, "id,key,d")
 

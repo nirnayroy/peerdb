@@ -16,6 +16,7 @@ type SuiteSource interface {
 	Teardown(t *testing.T, suffix string)
 	GeneratePeer(t *testing.T) *protos.Peer
 	Connector() connectors.Connector
+	Exec(sql string) error
 }
 
 func TableMappings[TSource connectors.Connector](s GenericSuite[TSource], tables ...string) []*protos.TableMapping {

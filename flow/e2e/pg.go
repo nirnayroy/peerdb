@@ -186,3 +186,8 @@ func GeneratePostgresPeer(t *testing.T) *protos.Peer {
 	CreatePeer(t, peer)
 	return peer
 }
+
+func (s *PostgresSource) Exec(sql string) error {
+	_, err := s.PostgresConnector.Conn().Exec(context.Background(), sql)
+	return err
+}
