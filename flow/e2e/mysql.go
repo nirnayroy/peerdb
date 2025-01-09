@@ -19,7 +19,7 @@ var mysqlConfig = &protos.MySqlConfig{
 	Port:        3306,
 	User:        "root",
 	Password:    "maria",
-	Database:    "default",
+	Database:    "",
 	Setup:       nil,
 	Compression: 0,
 	DisableTls:  true,
@@ -62,7 +62,7 @@ func (s *MySqlSource) Teardown(t *testing.T, suffix string) {
 func (s *MySqlSource) GeneratePeer(t *testing.T) *protos.Peer {
 	t.Helper()
 	peer := &protos.Peer{
-		Name: "catalog",
+		Name: "mysql",
 		Type: protos.DBType_MYSQL,
 		Config: &protos.Peer_MysqlConfig{
 			MysqlConfig: mysqlConfig,

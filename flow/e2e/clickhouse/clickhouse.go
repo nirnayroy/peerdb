@@ -35,7 +35,11 @@ func (s ClickHouseSuite) T() *testing.T {
 }
 
 func (s ClickHouseSuite) Connector() *connpostgres.PostgresConnector {
-	return s.source.Connector().(*connpostgres.PostgresConnector)
+	c, ok := s.source.Connector().(*connpostgres.PostgresConnector)
+	if !ok {
+		s.t.Skipf("skipping test because it relies on PostgresConnector, while source is %T", s.source)
+	}
+	return c
 }
 
 func (s ClickHouseSuite) DestinationConnector() connectors.Connector {

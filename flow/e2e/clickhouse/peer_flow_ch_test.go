@@ -31,7 +31,7 @@ func TestPeerFlowE2ETestSuitePG_CH(t *testing.T) {
 }
 
 func TestPeerFlowE2ETestSuiteMySQL_CH(t *testing.T) {
-	// TODO e2eshared.RunSuite(t, SetupSuite(t, e2e.SetupMySQL))
+	e2eshared.RunSuite(t, SetupSuite(t, e2e.SetupMySQL))
 }
 
 func (s ClickHouseSuite) attachSchemaSuffix(tableName string) string {
