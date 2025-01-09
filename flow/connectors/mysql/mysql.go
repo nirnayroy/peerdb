@@ -287,7 +287,26 @@ func qkindFromMysql(ty uint8) (qvalue.QValueKind, error) {
 	}
 }
 
-func qvalueFromMysqlFieldValue(qkind qvalue.QValueKind, fv mysql.FieldValue) (qvalue.QValue, error) {
+func QRecordSchemaFromMysqlFields(fields []*mysql.Field) (qvalue.QRecordSchema, error) {
+	schema := make([]qvalue.QField, 0, len(fields))
+	for _, field := range fields {
+		qkind, err := qkindFromMysql(field.Type)
+		if err != nil {
+			return qvalue.QRecordSchema{}, err
+		}
+
+		schema = append(schema, qvalue.QField{
+			Name:      string(field.Name),
+			Type:      qkind,
+			Precision: 0, // TODO numerics
+			Scale:     0, // TODO numerics
+			Nullable:  (field.Flag & mysql.NOT_NULL_FLAG) == 0,
+		})
+	}
+	return qvalue.QRecordSchema{Fields: schema}, nil
+}
+
+func QValueFromMysqlFieldValue(qkind qvalue.QValueKind, fv mysql.FieldValue) (qvalue.QValue, error) {
 	// TODO fill this in, maybe contribute upstream, figvure out how numeric etc fit in
 	switch v := fv.Value().(type) {
 	case nil:

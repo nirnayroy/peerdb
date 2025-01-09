@@ -315,7 +315,7 @@ func (c *MySqlConnector) PullRecords(
 					items := model.NewRecordItems(len(row))
 					for idx, val := range row {
 						fd := schema.Columns[idx]
-						items.AddColumn(fd.Name, qvalueFromMysqlRowEvent(ev.Table.ColumnType[idx], qvalue.QValueKind(fd.Type), val))
+						items.AddColumn(fd.Name, QValueFromMysqlRowEvent(ev.Table.ColumnType[idx], qvalue.QValueKind(fd.Type), val))
 					}
 
 					recordCount += 1
@@ -335,13 +335,13 @@ func (c *MySqlConnector) PullRecords(
 					oldItems := model.NewRecordItems(len(oldRow))
 					for idx, val := range oldRow {
 						fd := schema.Columns[idx]
-						oldItems.AddColumn(fd.Name, qvalueFromMysqlRowEvent(ev.Table.ColumnType[idx], qvalue.QValueKind(fd.Type), val))
+						oldItems.AddColumn(fd.Name, QValueFromMysqlRowEvent(ev.Table.ColumnType[idx], qvalue.QValueKind(fd.Type), val))
 					}
 					newRow := ev.Rows[idx+1]
 					newItems := model.NewRecordItems(len(newRow))
 					for idx, val := range ev.Rows[idx+1] {
 						fd := schema.Columns[idx]
-						newItems.AddColumn(fd.Name, qvalueFromMysqlRowEvent(ev.Table.ColumnType[idx], qvalue.QValueKind(fd.Type), val))
+						newItems.AddColumn(fd.Name, QValueFromMysqlRowEvent(ev.Table.ColumnType[idx], qvalue.QValueKind(fd.Type), val))
 					}
 
 					recordCount += 1
@@ -360,7 +360,7 @@ func (c *MySqlConnector) PullRecords(
 					items := model.NewRecordItems(len(row))
 					for idx, val := range row {
 						fd := schema.Columns[idx]
-						items.AddColumn(fd.Name, qvalueFromMysqlRowEvent(ev.Table.ColumnType[idx], qvalue.QValueKind(fd.Type), val))
+						items.AddColumn(fd.Name, QValueFromMysqlRowEvent(ev.Table.ColumnType[idx], qvalue.QValueKind(fd.Type), val))
 					}
 
 					recordCount += 1
@@ -380,7 +380,7 @@ func (c *MySqlConnector) PullRecords(
 	return nil
 }
 
-func qvalueFromMysqlRowEvent(mytype byte, qkind qvalue.QValueKind, val any) qvalue.QValue {
+func QValueFromMysqlRowEvent(mytype byte, qkind qvalue.QValueKind, val any) qvalue.QValue {
 	// TODO signedness, in ev.Table, need to extend QValue system
 	// See go-mysql row_event.go for mapping
 	switch val := val.(type) {

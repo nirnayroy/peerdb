@@ -138,7 +138,6 @@ func (c *MySqlConnector) GetQRepPartitions(
 	return partitionHelper.GetPartitions(), nil
 }
 
-// TODO use ExecuteStreamingSelect
 func (c *MySqlConnector) PullQRepRecords(
 	ctx context.Context,
 	config *protos.QRepConfig,
@@ -154,22 +153,11 @@ func (c *MySqlConnector) PullQRepRecords(
 
 	totalRecords := 0
 	onResult := func(rs *mysql.Result) error {
-		schema := make([]qvalue.QField, 0, len(rs.Fields))
-		for _, field := range rs.Fields {
-			qkind, err := qkindFromMysql(field.Type)
-			if err != nil {
-				return err
-			}
-
-			schema = append(schema, qvalue.QField{
-				Name:      string(field.Name),
-				Type:      qkind,
-				Precision: 0, // TODO numerics
-				Scale:     0, // TODO numerics
-				Nullable:  (field.Flag & mysql.NOT_NULL_FLAG) == 0,
-			})
+		schema, err := QRecordSchemaFromMysqlFields(rs.Fields)
+		if err != nil {
+			return err
 		}
-		stream.SetSchema(qvalue.QRecordSchema{Fields: schema})
+		stream.SetSchema(schema)
 		return nil
 	}
 	onRow := func(row []mysql.FieldValue) error {
@@ -180,7 +168,7 @@ func (c *MySqlConnector) PullQRepRecords(
 		}
 		record := make([]qvalue.QValue, 0, len(row))
 		for idx, val := range row {
-			qv, err := qvalueFromMysqlFieldValue(schema.Fields[idx].Type, val)
+			qv, err := QValueFromMysqlFieldValue(schema.Fields[idx].Type, val)
 			if err != nil {
 				return err
 			}

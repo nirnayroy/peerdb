@@ -102,11 +102,41 @@ func GetPgRows(conn *connpostgres.PostgresConnector, suffix string, table string
 }
 
 func GetMySqlRows(conn *connmysql.MySqlConnector, suffix string, table string, cols string) (*model.QRecordBatch, error) {
-	// TODO mysql
-	return nil, nil
+	rs, err := conn.Execute(
+		context.Background(),
+		fmt.Sprintf(`SELECT %s FROM e2e_test_%s.%s ORDER BY id`, cols, suffix, connpostgres.QuoteIdentifier(table)),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	schema, err := connmysql.QRecordSchemaFromMysqlFields(rs.Fields)
+	if err != nil {
+		return nil, err
+	}
+
+	batch := &model.QRecordBatch{
+		Schema:  schema,
+		Records: nil,
+	}
+
+	for _, row := range rs.Values {
+		record := make([]qvalue.QValue, 0, len(row))
+		for idx, val := range row {
+			qv, err := connmysql.QValueFromMysqlFieldValue(schema.Fields[idx].Type, val)
+			if err != nil {
+				return nil, err
+			}
+			record = append(record, qv)
+		}
+		batch.Records = append(batch.Records, record)
+	}
+
+	return batch, nil
 }
 
 func GetSuiteSourceRows[TSource connectors.Connector](suite Suite[TSource], table string, cols string) (*model.QRecordBatch, error) {
+	// TODO move to SuiteSource
 	switch conn := any(suite.Connector()).(type) {
 	case *connpostgres.PostgresConnector:
 		return GetPgRows(conn, suite.Suffix(), table, cols)
