@@ -141,7 +141,7 @@ func (c *MySqlConnector) ExecuteSelectStreaming(ctx context.Context, cmd string,
 			if err != nil {
 				if reconnects > 0 && mysql.ErrorEqual(err, mysql.ErrBadConn) {
 					reconnects -= 1
-					c.conn.Close()
+					_ = c.conn.Close()
 					c.conn = nil
 					continue
 				}
