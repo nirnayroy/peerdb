@@ -7,7 +7,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/go-mysql-org/go-mysql/client"
@@ -116,9 +115,7 @@ func (c *MySqlConnector) ExecuteSelectStreaming(ctx context.Context, cmd string,
 			}
 		}
 
-		cmd = strings.ReplaceAll(cmd, "\"", "`") // please don't work
-
-		if len(args) == 0 { // testing this branch being disabled
+		if c.conn == nil && len(args) == 0 { // testing this branch being disabled
 			if err := c.conn.ExecuteSelectStreaming(cmd, result, rowCb, resultCb); err != nil {
 				if reconnects > 0 && mysql.ErrorEqual(err, mysql.ErrBadConn) {
 					reconnects -= 1
@@ -139,7 +136,9 @@ func (c *MySqlConnector) ExecuteSelectStreaming(ctx context.Context, cmd string,
 				}
 				return err
 			}
-			if err := stmt.ExecuteSelectStreaming(result, rowCb, resultCb, args...); err != nil {
+			err = stmt.ExecuteSelectStreaming(result, rowCb, resultCb, args...)
+			_ = stmt.Close()
+			if err != nil {
 				if reconnects > 0 && mysql.ErrorEqual(err, mysql.ErrBadConn) {
 					reconnects -= 1
 					c.conn.Close()
