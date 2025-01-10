@@ -162,21 +162,21 @@ func (c *MySqlConnector) startSyncer() *replication.BinlogSyncer {
 	})
 }
 
-func (c *MySqlConnector) startStreaming(pos string) (*replication.BinlogSyncer, *replication.BinlogStreamer, error) {
+func (c *MySqlConnector) startStreaming(pos string) (*replication.BinlogSyncer, *replication.BinlogStreamer, mysql.GTIDSet, error) {
 	if rest, isFile := strings.CutPrefix(pos, "!f:"); isFile {
 		comma := strings.LastIndexByte(rest, ',')
 		if comma == -1 {
-			return nil, nil, fmt.Errorf("no comma in file/pos offset %s", pos)
+			return nil, nil, nil, fmt.Errorf("no comma in file/pos offset %s", pos)
 		}
 		offset, err := strconv.ParseUint(rest[comma+1:], 16, 32)
 		if err != nil {
-			return nil, nil, fmt.Errorf("invalid offset in file<D-o>pos offset %s: %w", pos, err)
+			return nil, nil, nil, fmt.Errorf("invalid offset in file<D-o>pos offset %s: %w", pos, err)
 		}
 		return c.startCdcStreamingFilePos(rest[:comma], uint32(offset))
 	} else {
 		gset, err := mysql.ParseGTIDSet(c.config.Flavor, pos)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		return c.startCdcStreamingGtid(gset)
 	}
@@ -184,23 +184,25 @@ func (c *MySqlConnector) startStreaming(pos string) (*replication.BinlogSyncer, 
 
 func (c *MySqlConnector) startCdcStreamingFilePos(
 	lastOffsetName string, lastOffsetPos uint32,
-) (*replication.BinlogSyncer, *replication.BinlogStreamer, error) {
+) (*replication.BinlogSyncer, *replication.BinlogStreamer, mysql.GTIDSet, error) {
 	syncer := c.startSyncer()
 	stream, err := syncer.StartSync(mysql.Position{Name: lastOffsetName, Pos: lastOffsetPos})
 	if err != nil {
 		syncer.Close()
 	}
-	return syncer, stream, err
+	return syncer, stream, nil, err
 }
 
-func (c *MySqlConnector) startCdcStreamingGtid(gset mysql.GTIDSet) (*replication.BinlogSyncer, *replication.BinlogStreamer, error) {
+func (c *MySqlConnector) startCdcStreamingGtid(
+	gset mysql.GTIDSet,
+) (*replication.BinlogSyncer, *replication.BinlogStreamer, mysql.GTIDSet, error) {
 	// https://hevodata.com/learn/mysql-gtids-and-replication-set-up
 	syncer := c.startSyncer()
 	stream, err := syncer.StartSyncGTID(gset)
 	if err != nil {
 		syncer.Close()
 	}
-	return syncer, stream, err
+	return syncer, stream, gset, err
 }
 
 func (c *MySqlConnector) ReplPing(context.Context) error {
@@ -246,7 +248,7 @@ func (c *MySqlConnector) PullRecords(
 ) error {
 	defer req.RecordStream.Close()
 
-	syncer, mystream, err := c.startStreaming(req.LastOffset.Text)
+	syncer, mystream, gset, err := c.startStreaming(req.LastOffset.Text)
 	if err != nil {
 		return err
 	}
@@ -281,28 +283,41 @@ func (c *MySqlConnector) PullRecords(
 			)))
 		}
 
+		// TODO if gset == nil update pos with event.Header.LogPos
+
 		switch ev := event.Event.(type) {
 		case *replication.RotateEvent:
-			req.RecordStream.UpdateLatestCheckpointText(fmt.Sprintf("!f:%s,%d", string(ev.NextLogName), ev.Position))
+			if gset == nil {
+				req.RecordStream.UpdateLatestCheckpointText(fmt.Sprintf("!f:%s,%d", string(ev.NextLogName), ev.Position))
+			}
 		case *replication.MariadbGTIDEvent:
-			var err error
-			newset, err := ev.GTIDNext()
-			if err != nil {
-				// TODO could ignore, but then we might get stuck rereading same batch each time
-				return err
+			if gset != nil {
+				var err error
+				newset, err := ev.GTIDNext()
+				if err != nil {
+					// TODO could ignore, but then we might get stuck rereading same batch each time
+					return err
+				}
+				if err := gset.Update(newset.String()); err != nil {
+					return err
+				}
+				req.RecordStream.UpdateLatestCheckpointText(gset.String())
 			}
-			req.RecordStream.UpdateLatestCheckpointText(newset.String())
 		case *replication.GTIDEvent:
-			var err error
-			newset, err := ev.GTIDNext()
-			if err != nil {
-				// TODO could ignore, but then we might get stuck rereading same batch each time
-				return err
+			if gset != nil {
+				var err error
+				newset, err := ev.GTIDNext()
+				if err != nil {
+					// TODO could ignore, but then we might get stuck rereading same batch each time
+					return err
+				}
+				if err := gset.Update(newset.String()); err != nil {
+					return err
+				}
+				req.RecordStream.UpdateLatestCheckpointText(gset.String())
 			}
-			req.RecordStream.UpdateLatestCheckpointText(newset.String())
 		case *replication.PreviousGTIDsEvent:
-			// TODO is this the correct way to handle this event?
-			req.RecordStream.UpdateLatestCheckpointText(ev.GTIDSets)
+			// TODO look into this, maybe we just do gset.Update(ev.GTIDSets)
 		case *replication.RowsEvent:
 			sourceTableName := string(ev.Table.Schema) + "." + string(ev.Table.Table) // TODO this is fragile
 			destinationTableName := req.TableNameMapping[sourceTableName].Name

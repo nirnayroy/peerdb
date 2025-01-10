@@ -104,7 +104,7 @@ func GetPgRows(conn *connpostgres.PostgresConnector, suffix string, table string
 func GetMySqlRows(conn *connmysql.MySqlConnector, suffix string, table string, cols string) (*model.QRecordBatch, error) {
 	rs, err := conn.Execute(
 		context.Background(),
-		fmt.Sprintf(`SELECT %s FROM e2e_test_%s.%s ORDER BY id`, cols, suffix, connpostgres.QuoteIdentifier(table)),
+		fmt.Sprintf(`SELECT %s FROM "e2e_test_%s".%s ORDER BY id`, cols, suffix, connpostgres.QuoteIdentifier(table)),
 	)
 	if err != nil {
 		return nil, err
