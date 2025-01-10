@@ -52,9 +52,23 @@ func (c *MySqlConnector) ConnectionActive(context.Context) error {
 	return nil
 }
 
-func (c *MySqlConnector) connect(ctx context.Context, options ...client.Option) (*client.Conn, error) {
-	return client.ConnectWithContext(ctx, fmt.Sprintf("%s:%d", c.config.Host, c.config.Port),
-		c.config.User, c.config.Password, c.config.Database, time.Minute, options...)
+func (c *MySqlConnector) connect(ctx context.Context) (*client.Conn, error) {
+	argF := []client.Option{func(conn *client.Conn) error {
+		conn.SetCapability(mysql.CLIENT_COMPRESS)
+		if !c.config.DisableTls {
+			conn.SetTLSConfig(&tls.Config{MinVersion: tls.VersionTLS13})
+		}
+		return nil
+	}}
+	conn, err := client.ConnectWithContext(ctx, fmt.Sprintf("%s:%d", c.config.Host, c.config.Port),
+		c.config.User, c.config.Password, c.config.Database, time.Minute, argF...)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := conn.Execute("SET sql_mode = ANSI"); err != nil {
+		return nil, fmt.Errorf("failed to set sql_mode to ANSI: %w", err)
+	}
+	return conn, nil
 }
 
 func (c *MySqlConnector) Execute(ctx context.Context, cmd string, args ...interface{}) (*mysql.Result, error) {
@@ -64,19 +78,9 @@ func (c *MySqlConnector) Execute(ctx context.Context, cmd string, args ...interf
 		// TODO need new connection if ctx changes between calls, or make upstream PR
 		if c.conn == nil {
 			var err error
-			var argF []client.Option
-			if !c.config.DisableTls {
-				argF = append(argF, func(conn *client.Conn) error {
-					conn.SetTLSConfig(&tls.Config{MinVersion: tls.VersionTLS13})
-					return nil
-				})
-			}
-			c.conn, err = c.connect(ctx, argF...)
+			c.conn, err = c.connect(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("failed to connect to mysql server: %w", err)
-			}
-			if _, err := c.conn.Execute("SET sql_mode = ANSI"); err != nil {
-				return nil, fmt.Errorf("failed to set sql_mode to ANSI: %w", err)
 			}
 		}
 
@@ -84,7 +88,7 @@ func (c *MySqlConnector) Execute(ctx context.Context, cmd string, args ...interf
 		if err != nil {
 			if reconnects > 0 && mysql.ErrorEqual(err, mysql.ErrBadConn) {
 				reconnects -= 1
-				c.conn.Close()
+				_ = c.conn.Close()
 				c.conn = nil
 				continue
 			}
@@ -105,27 +109,17 @@ func (c *MySqlConnector) ExecuteSelectStreaming(ctx context.Context, cmd string,
 		// TODO need new connection if ctx changes between calls, or make upstream PR
 		if c.conn == nil {
 			var err error
-			var argF []client.Option
-			if !c.config.DisableTls {
-				argF = append(argF, func(conn *client.Conn) error {
-					conn.SetTLSConfig(&tls.Config{MinVersion: tls.VersionTLS13})
-					return nil
-				})
-			}
-			c.conn, err = c.connect(ctx, argF...)
+			c.conn, err = c.connect(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to connect to mysql server: %w", err)
 			}
-			if _, err := c.conn.Execute("SET sql_mode = ANSI"); err != nil {
-				return fmt.Errorf("failed to set sql_mode to ANSI: %w", err)
-			}
 		}
 
-		if len(args) == 0 {
+		if c.conn == nil && len(args) == 0 { // testing this branch being disabled
 			if err := c.conn.ExecuteSelectStreaming(cmd, result, rowCb, resultCb); err != nil {
 				if reconnects > 0 && mysql.ErrorEqual(err, mysql.ErrBadConn) {
 					reconnects -= 1
-					c.conn.Close()
+					_ = c.conn.Close()
 					c.conn = nil
 					continue
 				}
