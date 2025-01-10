@@ -292,6 +292,7 @@ func (s ClickHouseSuite) Test_NullableColumnSetting() {
 func (s ClickHouseSuite) Test_Date32() {
 	srcTableName := "test_date32"
 	srcFullName := s.attachSchemaSuffix("test_date32")
+	quotedSrcFullName := "\"" + strings.ReplaceAll(srcFullName, ".", "\".\"") + "\""
 	dstTableName := "test_date32_dst"
 
 	require.NoError(s.t, s.source.Exec(fmt.Sprintf(`
@@ -300,10 +301,10 @@ func (s ClickHouseSuite) Test_Date32() {
 			"key" TEXT NOT NULL,
 			d DATE NOT NULL
 		);
-	`, srcFullName)))
+	`, quotedSrcFullName)))
 
 	require.NoError(s.t, s.source.Exec(
-		fmt.Sprintf(`INSERT INTO %s ("key",d) VALUES ('init','1935-01-01')`, srcFullName),
+		fmt.Sprintf(`INSERT INTO %s ("key",d) VALUES ('init','1935-01-01')`, quotedSrcFullName),
 	))
 
 	connectionGen := e2e.FlowConnectionGenerationConfig{
@@ -321,7 +322,7 @@ func (s ClickHouseSuite) Test_Date32() {
 	e2e.EnvWaitForEqualTablesWithNames(env, s, "waiting on initial", srcTableName, dstTableName, "id,key,d")
 
 	require.NoError(s.t, s.source.Exec(
-		fmt.Sprintf(`INSERT INTO %s ("key",d) VALUES ('cdc','1935-01-01')`, srcFullName),
+		fmt.Sprintf(`INSERT INTO %s ("key",d) VALUES ('cdc','1935-01-01')`, quotedSrcFullName),
 	))
 
 	e2e.EnvWaitForEqualTablesWithNames(env, s, "waiting on cdc", srcTableName, dstTableName, "id,key,d")

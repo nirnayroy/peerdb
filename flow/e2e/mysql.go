@@ -34,12 +34,16 @@ func SetupMySQL(t *testing.T, suffix string) (*MySqlSource, error) {
 		return nil, fmt.Errorf("failed to create postgres connection: %w", err)
 	}
 
-	if _, err := connector.Execute(context.Background(), "DROP DATABASE IF EXISTS e2e_test_"+suffix); err != nil {
+	if _, err := connector.Execute(
+		context.Background(), fmt.Sprintf("DROP DATABASE IF EXISTS \"e2e_test_%s\"", suffix),
+	); err != nil {
 		connector.Close()
 		return nil, err
 	}
 
-	if _, err := connector.Execute(context.Background(), "CREATE DATABASE e2e_test_"+suffix); err != nil {
+	if _, err := connector.Execute(
+		context.Background(), fmt.Sprintf("CREATE DATABASE \"e2e_test_%s\"", suffix),
+	); err != nil {
 		connector.Close()
 		return nil, err
 	}
@@ -53,7 +57,9 @@ func (s *MySqlSource) Connector() connectors.Connector {
 
 func (s *MySqlSource) Teardown(t *testing.T, suffix string) {
 	t.Helper()
-	if _, err := s.MySqlConnector.Execute(context.Background(), "DROP DATABASE IF EXISTS e2e_test_"+suffix); err != nil {
+	if _, err := s.MySqlConnector.Execute(
+		context.Background(), fmt.Sprintf("DROP DATABASE IF EXISTS \"e2e_test_%s\"", suffix),
+	); err != nil {
 		t.Log("failed to drop mysql database", err)
 		s.MySqlConnector.Close()
 	}
