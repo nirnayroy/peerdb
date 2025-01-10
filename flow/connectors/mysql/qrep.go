@@ -178,6 +178,17 @@ func (c *MySqlConnector) PullQRepRecords(
 		return nil
 	}
 
+	// testing
+	rs, err := c.Execute(ctx, "show databases")
+	if err != nil {
+		return 0, fmt.Errorf("mymymy err %w", err)
+	}
+	for rowIdx, row := range rs.Values {
+		for idx, val := range row {
+			c.logger.Info("mymymy show", slog.Int("rowIdx", rowIdx), slog.Int("idx", idx), slog.Any("field", string(val.AsString())))
+		}
+	}
+
 	if last.FullTablePartition {
 		// this is a full table partition, so just run the query
 		var rs mysql.Result

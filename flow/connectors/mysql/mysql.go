@@ -115,7 +115,7 @@ func (c *MySqlConnector) ExecuteSelectStreaming(ctx context.Context, cmd string,
 			}
 		}
 
-		if c.conn == nil && len(args) == 0 { // testing this branch being disabled
+		if len(args) == 0 {
 			if err := c.conn.ExecuteSelectStreaming(cmd, result, rowCb, resultCb); err != nil {
 				if reconnects > 0 && mysql.ErrorEqual(err, mysql.ErrBadConn) {
 					reconnects -= 1
