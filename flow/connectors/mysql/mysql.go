@@ -58,6 +58,7 @@ func (c *MySqlConnector) connect(ctx context.Context, options ...client.Option) 
 }
 
 func (c *MySqlConnector) Execute(ctx context.Context, cmd string, args ...interface{}) (*mysql.Result, error) {
+	slog.Info("mymymy", slog.String("query", cmd), slog.Any("when", time.Now()))
 	reconnects := 3
 	for {
 		// TODO need new connection if ctx changes between calls, or make upstream PR
@@ -98,6 +99,7 @@ func (c *MySqlConnector) ExecuteSelectStreaming(ctx context.Context, cmd string,
 	resultCb client.SelectPerResultCallback,
 	args ...interface{},
 ) error {
+	slog.Info("mymymy stream", slog.String("query", cmd), slog.Any("when", time.Now()))
 	reconnects := 3
 	for {
 		// TODO need new connection if ctx changes between calls, or make upstream PR
