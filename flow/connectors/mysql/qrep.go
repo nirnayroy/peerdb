@@ -181,7 +181,7 @@ func (c *MySqlConnector) PullQRepRecords(
 
 	// testing
 	schema, _, _ := strings.Cut(config.WatermarkTable, ".")
-	rs, err := c.Execute(ctx, fmt.Sprintf("show tables from %s", schema))
+	rs, err := c.Execute(ctx, "show tables from "+schema)
 	if err != nil {
 		return 0, fmt.Errorf("mymymy err %w", err)
 	}
@@ -195,6 +195,7 @@ func (c *MySqlConnector) PullQRepRecords(
 		// this is a full table partition, so just run the query
 		var rs mysql.Result
 		if err := c.ExecuteSelectStreaming(ctx, query, &rs, onRow, onResult); err != nil {
+			c.logger.Error("mymymy full err", slog.Any("error", err))
 			return 0, err
 		}
 	} else {
@@ -215,9 +216,12 @@ func (c *MySqlConnector) PullQRepRecords(
 
 		var rs mysql.Result
 		if err := c.ExecuteSelectStreaming(ctx, query, &rs, onRow, onResult, rangeStart, rangeEnd); err != nil {
+			c.logger.Error("mymymy partial err", slog.Any("error", err))
 			return 0, err
 		}
 	}
+
+	c.logger.Info("mymymy success")
 
 	close(stream.Records)
 	return totalRecords, nil
