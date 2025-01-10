@@ -350,6 +350,24 @@ func QValueFromMysqlFieldValue(qkind qvalue.QValueKind, fv mysql.FieldValue) (qv
 			return qvalue.QValueBytes{Val: v}, nil
 		case qvalue.QValueKindJSON:
 			return qvalue.QValueJSON{Val: string(v)}, nil
+		case qvalue.QValueKindTimestamp:
+			val, err := time.Parse("2006-01-02 15:04:05.000000", string(v))
+			if err != nil {
+				return nil, err
+			}
+			return qvalue.QValueTimestamp{Val: val}, nil
+		case qvalue.QValueKindTime:
+			val, err := time.Parse("15:04:05.000000", string(v))
+			if err != nil {
+				return nil, err
+			}
+			return qvalue.QValueTime{Val: val}, nil
+		case qvalue.QValueKindDate:
+			val, err := time.Parse(time.DateOnly, string(v))
+			if err != nil {
+				return nil, err
+			}
+			return qvalue.QValueDate{Val: val}, nil
 		default:
 			return nil, fmt.Errorf("cannot convert string %v to %s", v, qkind)
 		}
