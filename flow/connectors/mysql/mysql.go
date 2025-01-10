@@ -320,7 +320,7 @@ func QValueFromMysqlFieldValue(qkind qvalue.QValueKind, fv mysql.FieldValue) (qv
 		case qvalue.QValueKindInt64:
 			return qvalue.QValueInt64{Val: int64(v)}, nil
 		default:
-			return nil, fmt.Errorf("cannot convert int to %s", qkind)
+			return nil, fmt.Errorf("cannot convert uint64 to %s", qkind)
 		}
 	case int64:
 		switch qkind {
@@ -331,7 +331,7 @@ func QValueFromMysqlFieldValue(qkind qvalue.QValueKind, fv mysql.FieldValue) (qv
 		case qvalue.QValueKindInt64:
 			return qvalue.QValueInt64{Val: v}, nil
 		default:
-			return nil, fmt.Errorf("cannot convert int to %s", qkind)
+			return nil, fmt.Errorf("cannot convert int64 to %s", qkind)
 		}
 	case float64:
 		switch qkind {
@@ -340,7 +340,7 @@ func QValueFromMysqlFieldValue(qkind qvalue.QValueKind, fv mysql.FieldValue) (qv
 		case qvalue.QValueKindFloat64:
 			return qvalue.QValueFloat64{Val: float64(v)}, nil
 		default:
-			return nil, fmt.Errorf("cannot convert float to %s", qkind)
+			return nil, fmt.Errorf("cannot convert float64 to %s", qkind)
 		}
 	case []byte:
 		switch qkind {
@@ -351,7 +351,7 @@ func QValueFromMysqlFieldValue(qkind qvalue.QValueKind, fv mysql.FieldValue) (qv
 		case qvalue.QValueKindJSON:
 			return qvalue.QValueJSON{Val: string(v)}, nil
 		default:
-			return nil, fmt.Errorf("cannot convert string to %s", qkind)
+			return nil, fmt.Errorf("cannot convert string %v to %s", v, qkind)
 		}
 	default:
 		return nil, fmt.Errorf("unexpected mysql type %T", v)
