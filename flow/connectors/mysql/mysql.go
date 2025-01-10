@@ -5,7 +5,6 @@ package connmysql
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -313,7 +312,16 @@ func QValueFromMysqlFieldValue(qkind qvalue.QValueKind, fv mysql.FieldValue) (qv
 		return qvalue.QValueNull(qkind), nil
 	case uint64:
 		// TODO unsigned integers
-		return nil, errors.New("mysql unsigned integers not supported")
+		switch qkind {
+		case qvalue.QValueKindInt16:
+			return qvalue.QValueInt16{Val: int16(v)}, nil
+		case qvalue.QValueKindInt32:
+			return qvalue.QValueInt32{Val: int32(v)}, nil
+		case qvalue.QValueKindInt64:
+			return qvalue.QValueInt64{Val: int64(v)}, nil
+		default:
+			return nil, fmt.Errorf("cannot convert int to %s", qkind)
+		}
 	case int64:
 		switch qkind {
 		case qvalue.QValueKindInt16:
