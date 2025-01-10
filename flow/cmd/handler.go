@@ -534,6 +534,10 @@ func (h *FlowRequestHandler) ResyncMirror(
 		return nil, err
 	}
 
+	slog.Info("Sleeping for 5 minutes after dropping mirror", slog.String("flowJobName", req.FlowJobName))
+	// sleep for 5 minutes for testing
+	time.Sleep(5 * time.Minute)
+
 	if _, err := h.CreateCDCFlow(ctx, &protos.CreateCDCFlowRequest{
 		ConnectionConfigs: config,
 	}); err != nil {
