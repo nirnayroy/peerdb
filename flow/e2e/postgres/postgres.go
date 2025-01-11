@@ -32,6 +32,10 @@ func (s PeerFlowE2ETestSuitePG) Connector() *connpostgres.PostgresConnector {
 	return s.conn
 }
 
+func (s PeerFlowE2ETestSuitePG) Source() e2e.SuiteSource {
+	return &e2e.PostgresSource{PostgresConnector: s.conn}
+}
+
 func (s PeerFlowE2ETestSuitePG) DestinationConnector() connectors.Connector {
 	return s.conn
 }

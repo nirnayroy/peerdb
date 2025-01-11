@@ -40,30 +40,31 @@ func init() {
 	_ = godotenv.Load()
 }
 
-type Suite[TSource connectors.Connector] interface {
+type Suite interface {
 	e2eshared.Suite
 	T() *testing.T
-	Connector() TSource
+	Connector() *connpostgres.PostgresConnector
 	Suffix() string
+	Source() SuiteSource
 }
 
-type RowSource[TSource connectors.Connector] interface {
-	Suite[TSource]
+type RowSource interface {
+	Suite
 	GetRows(table, cols string) (*model.QRecordBatch, error)
 }
 
-type GenericSuite[TSource connectors.Connector] interface {
-	RowSource[TSource]
+type GenericSuite interface {
+	RowSource
 	Peer() *protos.Peer
 	DestinationConnector() connectors.Connector
 	DestinationTable(table string) string
 }
 
-func AttachSchema(s interface{ Suffix() string }, table string) string {
+func AttachSchema(s Suite, table string) string {
 	return fmt.Sprintf("e2e_test_%s.%s", s.Suffix(), table)
 }
 
-func AddSuffix[T connectors.Connector](s Suite[T], str string) string {
+func AddSuffix(s Suite, str string) string {
 	return fmt.Sprintf("%s_%s", str, s.Suffix())
 }
 
@@ -135,9 +136,9 @@ func GetMySqlRows(conn *connmysql.MySqlConnector, suffix string, table string, c
 	return batch, nil
 }
 
-func GetSuiteSourceRows[TSource connectors.Connector](suite Suite[TSource], table string, cols string) (*model.QRecordBatch, error) {
+func GetSuiteSourceRows(suite Suite, table string, cols string) (*model.QRecordBatch, error) {
 	// TODO move to SuiteSource
-	switch conn := any(suite.Connector()).(type) {
+	switch conn := any(suite.Source().Connector()).(type) {
 	case *connpostgres.PostgresConnector:
 		return GetPgRows(conn, suite.Suffix(), table, cols)
 	case *connmysql.MySqlConnector:
@@ -147,7 +148,7 @@ func GetSuiteSourceRows[TSource connectors.Connector](suite Suite[TSource], tabl
 	}
 }
 
-func RequireEqualTables[TSource connectors.Connector](suite RowSource[TSource], table string, cols string) {
+func RequireEqualTables(suite RowSource, table string, cols string) {
 	t := suite.T()
 	t.Helper()
 
@@ -160,12 +161,12 @@ func RequireEqualTables[TSource connectors.Connector](suite RowSource[TSource], 
 	require.True(t, e2eshared.CheckEqualRecordBatches(t, sourceRows, rows))
 }
 
-func EnvEqualTables[TSource connectors.Connector](env WorkflowRun, suite RowSource[TSource], table string, cols string) {
+func EnvEqualTables[TSource connectors.Connector](env WorkflowRun, suite RowSource, table string, cols string) {
 	EnvEqualTablesWithNames(env, suite, table, table, cols)
 }
 
-func EnvEqualTablesWithNames[TSource connectors.Connector](
-	env WorkflowRun, suite RowSource[TSource], srcTable string, dstTable string, cols string,
+func EnvEqualTablesWithNames(
+	env WorkflowRun, suite RowSource, srcTable string, dstTable string, cols string,
 ) {
 	t := suite.T()
 	t.Helper()
@@ -179,9 +180,9 @@ func EnvEqualTablesWithNames[TSource connectors.Connector](
 	EnvEqualRecordBatches(t, env, sourceRows, rows)
 }
 
-func EnvWaitForEqualTables[TSource connectors.Connector](
+func EnvWaitForEqualTables(
 	env WorkflowRun,
-	suite RowSource[TSource],
+	suite RowSource,
 	reason string,
 	table string,
 	cols string,
@@ -190,9 +191,9 @@ func EnvWaitForEqualTables[TSource connectors.Connector](
 	EnvWaitForEqualTablesWithNames(env, suite, reason, table, table, cols)
 }
 
-func EnvWaitForEqualTablesWithNames[TSource connectors.Connector](
+func EnvWaitForEqualTablesWithNames(
 	env WorkflowRun,
-	suite RowSource[TSource],
+	suite RowSource,
 	reason string,
 	srcTable string,
 	dstTable string,
@@ -220,9 +221,9 @@ func EnvWaitForEqualTablesWithNames[TSource connectors.Connector](
 	})
 }
 
-func EnvWaitForCount[TSource connectors.Connector](
+func EnvWaitForCount(
 	env WorkflowRun,
-	suite RowSource[TSource],
+	suite RowSource,
 	reason string,
 	dstTable string,
 	cols string,
@@ -591,7 +592,7 @@ func GetOwnersSelectorStringsSF() [2]string {
 	return [2]string{strings.Join(pgFields, ","), strings.Join(sfFields, ",")}
 }
 
-func ExpectedDestinationIdentifier[T connectors.Connector](s GenericSuite[T], ident string) string {
+func ExpectedDestinationIdentifier(s GenericSuite, ident string) string {
 	switch s.DestinationConnector().(type) {
 	case *connsnowflake.SnowflakeConnector:
 		return strings.ToUpper(ident)
@@ -600,7 +601,7 @@ func ExpectedDestinationIdentifier[T connectors.Connector](s GenericSuite[T], id
 	}
 }
 
-func ExpectedDestinationTableName[T connectors.Connector](s GenericSuite[T], table string) string {
+func ExpectedDestinationTableName(s GenericSuite, table string) string {
 	return ExpectedDestinationIdentifier(s, s.DestinationTable(table))
 }
 

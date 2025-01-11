@@ -32,15 +32,19 @@ func TestGenericBQ(t *testing.T) {
 	e2eshared.RunSuite(t, SetupGenericSuite(e2e_bigquery.SetupSuite))
 }
 
-func TestGenericCH(t *testing.T) {
+func TestGenericCH_PG(t *testing.T) {
 	e2eshared.RunSuite(t, SetupGenericSuite(e2e_clickhouse.SetupSuite(t, e2e.SetupPostgres)))
 }
 
-type Generic struct {
-	e2e.GenericSuite[*connpostgres.PostgresConnector]
+func TestGenericCH_MySQL(t *testing.T) {
+	e2eshared.RunSuite(t, SetupGenericSuite(e2e_clickhouse.SetupSuite(t, e2e.SetupMySQL)))
 }
 
-func SetupGenericSuite[T e2e.GenericSuite[*connpostgres.PostgresConnector]](f func(t *testing.T) T) func(t *testing.T) Generic {
+type Generic struct {
+	e2e.GenericSuite
+}
+
+func SetupGenericSuite[T e2e.GenericSuite](f func(t *testing.T) T) func(t *testing.T) Generic {
 	return func(t *testing.T) Generic {
 		t.Helper()
 		return Generic{f(t)}
@@ -52,16 +56,19 @@ func (s Generic) Test_Simple_Flow() {
 	srcTable := "test_simple"
 	dstTable := "test_simple_dst"
 	srcSchemaTable := e2e.AttachSchema(s, srcTable)
+	hstoreType := "TEXT"
+	if _, isPg := s.Source().Connector().(*connpostgres.PostgresConnector); isPg {
+		hstoreType = "HSTORE"
+	}
 
-	_, err := s.Connector().Conn().Exec(context.Background(), fmt.Sprintf(`
+	require.NoError(t, s.Source().Exec(fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
 			id SERIAL PRIMARY KEY,
-			key TEXT NOT NULL,
+			"key" TEXT NOT NULL,
 			value TEXT NOT NULL,
-			myh HSTORE NOT NULL
+			myh %s NOT NULL
 		);
-	`, srcSchemaTable))
-	require.NoError(t, err)
+	`, srcSchemaTable, hstoreType)))
 
 	connectionGen := e2e.FlowConnectionGenerationConfig{
 		FlowJobName:   e2e.AddSuffix(s, "test_simple"),
@@ -78,10 +85,9 @@ func (s Generic) Test_Simple_Flow() {
 	for i := range 10 {
 		testKey := fmt.Sprintf("test_key_%d", i)
 		testValue := fmt.Sprintf("test_value_%d", i)
-		_, err = s.Connector().Conn().Exec(context.Background(), fmt.Sprintf(`
-		INSERT INTO %s(key, value, myh) VALUES ($1, $2, '"a"=>"b"')
-		`, srcSchemaTable), testKey, testValue)
-		e2e.EnvNoError(t, env, err)
+		e2e.EnvNoError(t, env, s.Source().Exec(
+			fmt.Sprintf(`INSERT INTO %s("key", value, myh) VALUES ('%s', '%s', '"a"=>"b"')`, srcSchemaTable, testKey, testValue),
+		))
 	}
 	t.Log("Inserted 10 rows into the source table")
 

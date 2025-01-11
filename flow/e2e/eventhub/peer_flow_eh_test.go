@@ -36,6 +36,10 @@ func (s EventhubsSuite) Connector() *connpostgres.PostgresConnector {
 	return s.conn
 }
 
+func (s EventhubsSuite) Source() e2e.SuiteSource {
+	return &e2e.PostgresSource{PostgresConnector: s.conn}
+}
+
 func (s EventhubsSuite) Conn() *pgx.Conn {
 	return s.Connector().Conn()
 }

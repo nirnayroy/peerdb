@@ -42,6 +42,10 @@ func (s ClickHouseSuite) Connector() *connpostgres.PostgresConnector {
 	return c
 }
 
+func (s ClickHouseSuite) Source() e2e.SuiteSource {
+	return s.source
+}
+
 func (s ClickHouseSuite) DestinationConnector() connectors.Connector {
 	// TODO have CH connector
 	return nil

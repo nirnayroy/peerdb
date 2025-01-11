@@ -33,6 +33,10 @@ func (s KafkaSuite) Connector() *connpostgres.PostgresConnector {
 	return s.conn
 }
 
+func (s KafkaSuite) Source() e2e.SuiteSource {
+	return &e2e.PostgresSource{PostgresConnector: s.conn}
+}
+
 func (s KafkaSuite) Conn() *pgx.Conn {
 	return s.Connector().Conn()
 }

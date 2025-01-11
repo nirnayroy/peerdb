@@ -41,6 +41,10 @@ func (s PeerFlowE2ETestSuiteSQLServer) Connector() *connpostgres.PostgresConnect
 	return s.conn
 }
 
+func (s PeerFlowE2ETestSuiteSQLServer) Source() e2e.SuiteSource {
+	return &e2e.PostgresSource{PostgresConnector: s.conn}
+}
+
 func (s PeerFlowE2ETestSuiteSQLServer) Suffix() string {
 	return s.suffix
 }

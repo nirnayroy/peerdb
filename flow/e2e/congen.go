@@ -19,7 +19,7 @@ type SuiteSource interface {
 	Exec(sql string) error
 }
 
-func TableMappings[TSource connectors.Connector](s GenericSuite[TSource], tables ...string) []*protos.TableMapping {
+func TableMappings(s GenericSuite, tables ...string) []*protos.TableMapping {
 	if len(tables)&1 != 0 {
 		panic("must receive even number of table names")
 	}

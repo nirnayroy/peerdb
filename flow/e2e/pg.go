@@ -147,7 +147,7 @@ func (s *PostgresSource) Teardown(t *testing.T, suffix string) {
 	}
 }
 
-func TearDownPostgres(s Suite[*connpostgres.PostgresConnector]) {
+func TearDownPostgres(s Suite) {
 	t := s.T()
 	t.Helper()
 

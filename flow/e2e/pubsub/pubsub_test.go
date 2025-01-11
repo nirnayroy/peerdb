@@ -38,6 +38,10 @@ func (s PubSubSuite) Connector() *connpostgres.PostgresConnector {
 	return s.conn
 }
 
+func (s PubSubSuite) Source() e2e.SuiteSource {
+	return &e2e.PostgresSource{PostgresConnector: s.conn}
+}
+
 func (s PubSubSuite) Conn() *pgx.Conn {
 	return s.Connector().Conn()
 }
