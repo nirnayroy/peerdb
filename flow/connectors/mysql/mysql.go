@@ -290,6 +290,9 @@ func QRecordSchemaFromMysqlFields(fields []*mysql.Field) (qvalue.QRecordSchema, 
 		if err != nil {
 			return qvalue.QRecordSchema{}, err
 		}
+		if qkind == qvalue.QValueKindBytes {
+			slog.Info("mymymy bytes", slog.Int("type", int(field.Type)))
+		}
 
 		schema = append(schema, qvalue.QField{
 			Name:      string(field.Name),
